@@ -15,33 +15,17 @@ DEFINE_int32(client_id, 0, "Client ID");
 DEFINE_int32(num_comm_channels_per_client, 4, 
         "number of comm channels per client");
  
-/* NMF Parameters */
-// Input and Output
-DEFINE_string(data_file, "", "Input data.");
-DEFINE_string(input_data_format, "", "Format of input data"
-        ", can be \"binary\" or \"text\".");
-
-DEFINE_string(output_path, "", "Output path. Must be an existing directory.");
-DEFINE_string(output_data_format, "", "Format of output matrix file"
-        ", can be \"binary\" or \"text\".");
-DEFINE_double(maximum_running_time, -1.0, "Maximum running hours. "
-        "Valid if it takes value greater than 0."
-        "App will try to terminate when running time exceeds "
-        "maximum_running_time, but it will take longer time to synchronize "
-        "tables on different clients and save results to disk.");
-
 // Objective function parameters
 DEFINE_int32(feature, 0, "number of the feature of data. ");
 DEFINE_int32(row, 0, "number of the row of data. ");
 DEFINE_double(rho, 0, "the ADMM parament. ");
 
 // Optimization parameters
-
 DEFINE_int32(num_epochs, 100, "Number of epochs"
         ", where each epoch approximately visit the whole dataset once. "
         "Default value is 0.5.");
 /* Misc */
-DEFINE_int32(table_staleness, 0, "Staleness for R table."
+DEFINE_int32(table_staleness, 0, "Staleness for Z table."
         "Default value is 0.");
 
 /* No need to change the following */
@@ -60,7 +44,7 @@ int main(int argc, char * argv[]) {
     table_group_config.num_comm_channels_per_client
       = FLAGS_num_comm_channels_per_client;
     table_group_config.num_total_clients = FLAGS_num_clients;
-    // Dictionary table and loss table
+    // z table
     table_group_config.num_tables = 1;
     // + 1 for main()
     table_group_config.num_local_app_threads = FLAGS_num_worker_threads + 1;;
@@ -94,15 +78,11 @@ int main(int argc, char * argv[]) {
     // Start PS
     petuum::PSTableGroup::Init(table_group_config, false);
 
-    // Load data
-    STATS_APP_LOAD_DATA_BEGIN();
     LR::LinearRegression lr;
-    LOG(INFO) << "Data loaded!";
-    STATS_APP_LOAD_DATA_END();
-
+    
     // Create PS table
     //
-    // Z_table update: x + 1/rho * y
+    // z_table update: x + 1/rho * y
     petuum::ClientTableConfig table_config;
     table_config.table_info.row_type = 0;
     table_config.table_info.table_staleness = FLAGS_table_staleness;

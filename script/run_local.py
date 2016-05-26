@@ -23,18 +23,12 @@ proj_dir = dirname(dirname(app_dir))
 
 params = {
     "table_staleness": 0
-    , "input_data_format": "text"
-    , "output_data_format": "text"
-     , "output_path": join(app_dir, "sample/output")
-    #, "output_path": "hdfs://hdfs-domain/user/bosen/dataset/nmf/sample/output"
-    , "feature": 4
-    , "row": 4
+    #, "output_path": "hdfs://hdfs-domain/user/bosen/dataset/ADMM/sample/output"
+    , "feature": 3
+    , "row": 3
     , "rho": 1.0
-    , "num_epochs": 4000
-    #, "table_staleness": 0
-    , "maximum_running_time": 0.0
-     , "data_file": join(app_dir, "sample/data/sample.txt")
-    #, "data_file": "hdfs://hdfs-domain/user/bosen/dataset/nmf/sample/data/sample.txt"
+    , "num_epochs": 1000
+    #, "data_file": "hdfs://hdfs-domain/user/bosen/dataset/ADMM/sample/data/sample.txt"
     }
 
 petuum_params = {

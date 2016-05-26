@@ -22,13 +22,6 @@ namespace LR {
 
         /* context */
         lda::Context & context = lda::Context::get_instance();
-        // input and output
-        data_file_ = context.get_string("data_file");
-        input_data_format_ = context.get_string("input_data_format");
-        
-        output_path_ = context.get_string("output_path");
-        output_data_format_ = context.get_string("output_data_format");
-        maximum_running_time_ = context.get_double("maximum_running_time");
 
         // objective function parameters
         feature = context.get_int32("feature");
@@ -61,9 +54,9 @@ namespace LR {
         //register row
         if(thread_id == 0)
 			z_table.GetAsyncForced(0);
-        
-        //init table
+			
         petuum::PSTableGroup::GlobalBarrier();
+
         float temp,error;
         char Adir[100],bdir[100];
         std::vector<float> z_cache;
@@ -82,8 +75,9 @@ namespace LR {
         Eigen::MatrixXf lemonI(feature,feature);
         Eigen::MatrixXf identity(feature,feature);
 		Eigen::VectorXf result(feature);
+		Eigen::VectorXf obj(row);
 		
-        //parament
+        //parameters
         Eigen::VectorXf x(feature);
         Eigen::VectorXf x_diff(feature);
         Eigen::VectorXf z(feature);
@@ -96,7 +90,7 @@ namespace LR {
         y.setZero();
         z_old.setZero();
         z_diff.setZero();
-        
+     
         //init the z_table
         if(thread_id == 0 && client_id_ == 0){
 			petuum::UpdateBatch<float> z_update;
@@ -122,28 +116,33 @@ namespace LR {
 			fscanf(fps,"%f",&temp);
 			s(i) = temp;
 		}
-
+		
+		//warm start
 		lemon = A.transpose()  * A + rho * identity.setIdentity();
 		lemonI = lemon.inverse();
 		petuum::PSTableGroup::GlobalBarrier();
 		
+		//begin to iteration
         for(int iter = 0 ;iter < num_epochs_;iter++){
 			//get z from server
-			petuum::RowAccessor row_acc;
-			const auto & row = z_table.Get<petuum::DenseRow<float> >(0, &row_acc);
-            row.CopyToVector(&z_cache);
-            for (int col_id = 0; col_id < feature; ++col_id) {
-				z(col_id) = z_cache[col_id];
-            }
-            
-			//std::cout <<"thread_id "<<thread_id<< " :z "<<z<< std::endl;
-			
+			if(iter != 0){
+				petuum::RowAccessor row_acc;
+				const auto & row = z_table.Get<petuum::DenseRow<float> >(0, &row_acc);
+				row.CopyToVector(&z_cache);
+				for (int col_id = 0; col_id < feature; ++col_id) {
+					z(col_id) = z_cache[col_id];
+				}
+			}
             //update x
 			x = lemonI * (A.transpose() * b + rho * z - y);
 			/*if(thread_id == 0){
-				std::cout << "after :"<< (A.transpose() * b + rho * z - y) << std::endl;
-				std::cout << "lemonI :"<< lemonI << std::endl;
-				std::cout << "x :"<< x << std::endl;
+				std::cout << "A matrix:\n"<< A << std::endl;
+				std::cout << "b matrix:\n"<< b << std::endl;
+				std::cout << "x:\n"<< x << std::endl;
+				std::cout << "y:\n"<< y << std::endl;
+				std::cout << "z:\n"<< z << std::endl;
+				std::cout << "after :\n"<< (A.transpose() * b + rho * z - y) << std::endl;
+				std::cout << "lemonI :\n"<< lemonI << std::endl;
 			}*/
 			//update y
 			y = y + rho * (x - z);
@@ -159,18 +158,28 @@ namespace LR {
 				z_update.Update(i,z_diff(i));
 			}
 			z_table.BatchInc(0, z_update);
-			
+			//clock
 			petuum::PSTableGroup::Clock();
 			 
 			z_old = z;
 			x_diff = x - s;
+			
+			//primal error
 			error = x_diff.squaredNorm()/s.squaredNorm();
+			
+			//obj value
+			obj = A * x - b;
+			
 			if(thread_id == 0)
 				LOG(INFO) << "iter: " << iter << ", client " 
                         << client_id_ << ", thread " << thread_id <<
-                        " primal error: " << error << "object value";
+                        " primal error: " << error << " object value: "<< obj.squaredNorm();
+                        
             if(error < 10e-11)
             {
+				boost::posix_time::time_duration runTime = 
+                    boost::posix_time::microsec_clock::local_time() - initT_;
+                LOG(INFO) << "Elapsed time is: "<< runTime.total_milliseconds() << " ms.";
 				return;
 			}
 		}
