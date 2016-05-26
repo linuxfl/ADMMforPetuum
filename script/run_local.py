@@ -23,11 +23,11 @@ proj_dir = dirname(dirname(app_dir))
 
 params = {
     "table_staleness": 0
-    #, "output_path": "hdfs://hdfs-domain/user/bosen/dataset/ADMM/sample/output"
     , "feature": 3
     , "row": 3
-    , "rho": 1.0
+    , "rho": 1
     , "num_epochs": 1000
+    #, "output_path": "hdfs://hdfs-domain/user/bosen/dataset/ADMM/sample/output"
     #, "data_file": "hdfs://hdfs-domain/user/bosen/dataset/ADMM/sample/data/sample.txt"
     }
 

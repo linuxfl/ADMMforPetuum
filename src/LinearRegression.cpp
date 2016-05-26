@@ -60,13 +60,18 @@ namespace LR {
         float temp,error;
         char Adir[100],bdir[100];
         std::vector<float> z_cache;
-        sprintf(Adir,"/home/fangling/petuum/bosen/app/ADMM/data/A%d.dat",thread_id);
-        sprintf(bdir,"/home/fangling/petuum/bosen/app/ADMM/data/b%d.dat",thread_id);
-
+        sprintf(Adir,"/home/fangling/petuum/bosen/app/ADMM/data/A%d.dat",client_id_*num_worker_threads_+thread_id);
+        sprintf(bdir,"/home/fangling/petuum/bosen/app/ADMM/data/b%d.dat",client_id_*num_worker_threads_+thread_id);
+		
         FILE *fpA = fopen(Adir,"r");
 		FILE *fpb = fopen(bdir,"r");
 		FILE *fps = fopen("/home/fangling/petuum/bosen/app/ADMM/data/solution.dat","r");
-
+		if(!fpA && !fpb && !fps){
+			LOG(INFO) << "open the source file error!!!";
+		}
+		//std::cout << "client_id" << client_id_ << "thread_id: " << thread_id << Adir << std::endl;
+		//std::cout << "client_id" << client_id_ << "thread_id: " << thread_id << bdir << std::endl;
+		
         //source data
         Eigen::MatrixXf A(row,feature);
         Eigen::VectorXf b(row);
@@ -90,7 +95,7 @@ namespace LR {
         y.setZero();
         z_old.setZero();
         z_diff.setZero();
-     
+
         //init the z_table
         if(thread_id == 0 && client_id_ == 0){
 			petuum::UpdateBatch<float> z_update;
@@ -135,19 +140,20 @@ namespace LR {
 			}
             //update x
 			x = lemonI * (A.transpose() * b + rho * z - y);
-			/*if(thread_id == 0){
-				std::cout << "A matrix:\n"<< A << std::endl;
-				std::cout << "b matrix:\n"<< b << std::endl;
-				std::cout << "x:\n"<< x << std::endl;
-				std::cout << "y:\n"<< y << std::endl;
-				std::cout << "z:\n"<< z << std::endl;
-				std::cout << "after :\n"<< (A.transpose() * b + rho * z - y) << std::endl;
-				std::cout << "lemonI :\n"<< lemonI << std::endl;
-			}*/
+			//if(thread_id == 0 && client_id_ == 0){
+				//LOG(INFO) << "client_id : "<< client_id_ <<"thread_id : "<< thread_id;
+				//LOG(INFO) << "A matrix:\n"<< A << std::endl;
+				//LOG(INFO) << "b matrix:\n"<< b << std::endl;
+				//LOG(INFO) << "x:\n"<< x << std::endl;
+				//LOG(INFO) << "y:\n"<< y << std::endl;
+				//LOG(INFO) << "client_id : "<< client_id_ <<"thread_id : "<< thread_id << " z:\n"<< z << std::endl;
+				//LOG(INFO) << "after :\n"<< (A.transpose() * b + rho * z - y) << std::endl;
+				//LOG(INFO) << "lemonI :\n"<< lemonI << std::endl;
+			//}
 			//update y
 			y = y + rho * (x - z);
 			//update z
-			z = 1.0/num_worker_threads_ * (x + 1.0/rho * y);
+			z = 1.0/(num_worker_threads_* num_clients_) * (x + 1.0/rho * y);
 			
 			//z diff
 			z_diff = z - z_old;
@@ -170,7 +176,7 @@ namespace LR {
 			//obj value
 			obj = A * x - b;
 			
-			if(thread_id == 0)
+			if(thread_id == 0 && client_id_ == 0)
 				LOG(INFO) << "iter: " << iter << ", client " 
                         << client_id_ << ", thread " << thread_id <<
                         " primal error: " << error << " object value: "<< obj.squaredNorm();
